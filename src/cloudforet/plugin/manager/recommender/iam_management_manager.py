@@ -20,7 +20,7 @@ class IAMManagementRecommendationManager(ResourceManager):
         self.cloud_service_group = "Recommender"
         self.cloud_service_type = "IAMManagement"
         self.metadata_path = (
-            "metadata/recommender/iam_management.yaml"
+            "plugin/metadata/recommender/iam_management.yaml"
         )
         self.project_id = None
         self.organization_id = None
