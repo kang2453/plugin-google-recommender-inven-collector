@@ -49,9 +49,7 @@ def collector_collect(params: dict) -> dict:
 
 @app.route("Job.get_tasks")
 def job_get_tasks(params: dict) -> dict:
-    
-    tasks = []
-    return {"tasks":tasks}
+    pass
 
 
 def _create_init_metadata():
