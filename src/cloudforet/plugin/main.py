@@ -9,6 +9,13 @@ app = CollectorPluginServer()
 
 _LOGGER = logging.getLogger("spaceone")
 
+# DEFAULT_RESOURCE_TYPES = [
+#     "inventory.CloudService",
+#     "inventory.CloudServiceType",
+#     "inventory.Region",
+#     "inventory.ErrorResource",
+# ]
+
 
 @app.route("Collector.init")
 def collector_init(params: dict) -> dict:
@@ -42,7 +49,9 @@ def collector_collect(params: dict) -> dict:
 
 @app.route("Job.get_tasks")
 def job_get_tasks(params: dict) -> dict:
-    pass
+    
+    tasks = []
+    return {"tasks":tasks}
 
 
 def _create_init_metadata():
