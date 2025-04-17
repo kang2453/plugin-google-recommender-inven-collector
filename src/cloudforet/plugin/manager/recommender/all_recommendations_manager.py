@@ -198,16 +198,18 @@ recommendations?project={self.project_id}",
                     }
 
     def _parse_recommendation(self, rec: dict) -> dict:
+        
+        resource = rec.get("content", {}).get("operationGroups", [{}])[0].get("operations", [{}])[0].get("resource")
+        if resource:
+            resource = resource.split("/")[-1]
+
         data = {
             "name": rec.get("name"),
             "category": rec.get("primaryImpact", {}).get("category"),
             "longDescription": rec.get("description"),
             "subtype": rec.get("recommenderSubtype"),
-            "resource": rec.get("content", {})
-            .get("operationGroups", [{}])[0]
-            .get("operations", [{}])[0]
-            .get("resource")
-            .split("/")[-1],
+            # "resource": rec.get("content", {}).get("operationGroups", [{}])[0].get("operations", [{}])[0].get("resource").split("/")[-1],
+            "resource": resource,
             "state": rec.get("stateInfo", {}).get("state"),
             "associatedInsights": [
                 insight.get("insight") for insight in rec.get("associatedInsights", [])
