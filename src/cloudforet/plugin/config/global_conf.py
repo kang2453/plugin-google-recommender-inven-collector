@@ -390,3 +390,9 @@ RECOMMENDATION_MAP = {
         "shortDescription": "Explore more helpful products",
     },
 }
+
+
+BIGQUERY_RECOMMENDERS = {
+    "google.bigquery.capacityCommitments.Recommender": "global",
+    "google.bigquery.table.PartitionClusterRecommender": "global",
+}

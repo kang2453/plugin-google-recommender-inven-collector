@@ -17,58 +17,42 @@ class IAMConnector(GoogleCloudConnector):
         roles = []
         request = self.client.roles().list(pageSize=1000, view='FULL')
 
-        while True:
+        while request is not None:
             response = request.execute()
-
             roles.extend(response.get("roles", []))
-
             request = (
                 self.client.roles()
                 .list_next(previous_request=request, previous_response=response)
             )
-
-            if request is None:
-                break
-
         return roles
 
     def list_project_roles(self, project_id: str = None):
         parent = f"projects/{project_id}"
         roles = []
         request = self.client.projects().roles().list(parent=parent, pageSize=1000, view='FULL')
-        while True:
+
+        while request is not None:
             response = request.execute()
-
             roles.extend(response.get("roles", []))
-
             request = (
                 self.client.projects()
                 .roles()
                 .list_next(previous_request=request, previous_response=response)
             )
-
-            if request is None:
-                break
-
         return roles
 
     def list_organization_roles(self, resource):
         roles = []
         request = self.client.organizations().roles().list(parent=resource, pageSize=1000, view='FULL')
 
-        while True:
+        while request is not None:
             response = request.execute()
             roles.extend(response.get("roles", []))
-
             request = (
                 self.client.organizations()
                 .roles()
                 .list_next(previous_request=request, previous_response=response)
             )
-
-            if request is None:
-                break
-
         return roles
 
     def get_all_roles_to_permissions_dict(self, project_id: str, organization_id: str):
