@@ -3,6 +3,7 @@ from spaceone.inventory.plugin.collector.lib import *
 from cloudforet.plugin.manager.base import ResourceManager
 from cloudforet.plugin.config.global_conf import (
     ASSET_URL,
+    BIGQUERY_RECOMMENDERS,
     RECOMMENDATION_TYPE_DOCS_URL,
     UNAVAILABLE_RECOMMENDER_IDS,
 )
@@ -14,6 +15,7 @@ from cloudforet.plugin.connector.recommender.cloud_asset import CloudAssetConnec
 import requests
 from bs4 import BeautifulSoup
 from cloudforet.plugin.utils.converter import Converter
+
 _LOGGER = logging.getLogger(__name__)
 
 
@@ -161,41 +163,51 @@ recommendations?project={self.project_id}",
         for row in rows:
             cols = row.find_all("td")
             cols = [ele.text.strip() for ele in cols]
-            if cols:
-                try:
-                    category, name, recommender_id, short_description, etc = cols
-                except ValueError:
-                    try:
-                        name, recommender_id, short_description, etc = cols
-                    except ValueError:
-                        recommender_id, short_description, etc = cols
-
-                recommender_ids = []
-                if "Cloud SQL performance recommender" in name:
-                    name = "Cloud SQL performance recommender"
-                    short_description = "Improve Cloud SQL instance performance"
-                    recommender_ids = [
-                        "google.cloudsql.instance.PerformanceRecommender"
-                    ]
+            if not cols:
+                continue
+            
+            # 열 개수에 따라 데이터 파싱
+            if len(cols) == 5:
+                category, name, recommender_id, short_description, _ = cols
+            elif len(cols) == 4:
+                name, recommender_id, short_description, _ = cols
+            elif len(cols) == 3:
+                recommender_id, short_description, _ = cols
+                name = short_description
+            else:
+                _LOGGER.warning(f"Unexpected number of columns: {len(cols)}")
+                continue
+            
+            recommender_ids = []
+            if "Cloud SQL performance recommender" in name:
+                name = "Cloud SQL performance recommender"
+                short_description = "Improve Cloud SQL instance performance"
+                recommender_ids = [
+                    "google.cloudsql.instance.PerformanceRecommender"
+                ]
+            else:
+                if recommender_id.count("google.") > 1:
+                    re_ids = recommender_id.split("google.")[1:]
+                    for re_id in re_ids:
+                        re_id = "google." + re_id
+                        if re_id not in UNAVAILABLE_RECOMMENDER_IDS:
+                            recommender_ids.append(re_id)
                 else:
-                    if recommender_id.count("google.") > 1:
-                        re_ids = recommender_id.split("google.")[1:]
-                        for re_id in re_ids:
-                            re_id = "google." + re_id
-                            if re_id not in UNAVAILABLE_RECOMMENDER_IDS:
-                                recommender_ids.append(re_id)
+                    if recommender_id not in UNAVAILABLE_RECOMMENDER_IDS:
+                        recommender_ids = [recommender_id]
                     else:
-                        if recommender_id not in UNAVAILABLE_RECOMMENDER_IDS:
-                            recommender_ids = [recommender_id]
-                        else:
-                            continue
+                        continue
+                
+            name = name.partition("\n")[0].strip()
+            short_description = short_description.partition("\n")[0].strip()
 
-                for recommender_id in recommender_ids:
-                    self.recommender_map[recommender_id] = {
-                        "category": category,
-                        "name": name,
-                        "shortDescription": short_description,
-                    }
+            for recommender_id in recommender_ids:
+                _LOGGER.debug(f"category: {category}, recommender_id: {recommender_id}, name: {name}, short_description: {short_description}")
+                self.recommender_map[recommender_id] = {
+                    "category": category,
+                    "name": name,
+                    "shortDescription": short_description,
+                }
 
     def _parse_recommendation(self, rec: dict) -> dict:
         
@@ -280,8 +292,15 @@ recommendations?project={self.project_id}",
         return ""
 
     def _create_parents_for_request_params(self):
+        
         recommendation_parents = []
         for recommender_id, recommender_info in self.recommender_map.items():
+            
+            if recommender_info.get("cloudServiceGroup") == "bigquery":
+                location = BIGQUERY_RECOMMENDERS.get(recommender_id)
+                if location:
+                    recommender_info["locations"] = [location]
+
             locations = recommender_info.get("locations", self.all_locations)
             for region_or_zone in locations:
                 recommendation_parents.append(
