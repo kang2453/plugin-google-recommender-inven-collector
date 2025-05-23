@@ -6,6 +6,7 @@ from cloudforet.plugin.config.global_conf import (
     BIGQUERY_RECOMMENDERS,
     RECOMMENDATION_TYPE_DOCS_URL,
     UNAVAILABLE_RECOMMENDER_IDS,
+    RECOMMENDATION_MAP,
 )
 from abc import abstractmethod
 from cloudforet.plugin.connector.recommender.recommendation import (
@@ -154,60 +155,65 @@ recommendations?project={self.project_id}",
         return cloud_services, error_responses
 
     def set_recommendation_id_map_by_crawling(self):
-        res = requests.get(RECOMMENDATION_TYPE_DOCS_URL)
-        soup = BeautifulSoup(res.content, "html.parser")
-        table = soup.find("table")
-        rows = table.find_all("tr")
+        
+        try:
+            res = requests.get(RECOMMENDATION_TYPE_DOCS_URL)
+            soup = BeautifulSoup(res.content, "html.parser")
+            table = soup.find("table")
+            rows = table.find_all("tr")
 
-        category, name, recommender_id, short_description, etc = "", "", "", "", ""
-        for row in rows:
-            cols = row.find_all("td")
-            cols = [ele.text.strip() for ele in cols]
-            if not cols:
-                continue
-            
-            # 열 개수에 따라 데이터 파싱
-            if len(cols) == 5:
-                category, name, recommender_id, short_description, _ = cols
-            elif len(cols) == 4:
-                name, recommender_id, short_description, _ = cols
-            elif len(cols) == 3:
-                recommender_id, short_description, _ = cols
-                name = short_description
-            else:
-                _LOGGER.warning(f"Unexpected number of columns: {len(cols)}")
-                continue
-            
-            recommender_ids = []
-            if "Cloud SQL performance recommender" in name:
-                name = "Cloud SQL performance recommender"
-                short_description = "Improve Cloud SQL instance performance"
-                recommender_ids = [
-                    "google.cloudsql.instance.PerformanceRecommender"
-                ]
-            else:
-                if recommender_id.count("google.") > 1:
-                    re_ids = recommender_id.split("google.")[1:]
-                    for re_id in re_ids:
-                        re_id = "google." + re_id
-                        if re_id not in UNAVAILABLE_RECOMMENDER_IDS:
-                            recommender_ids.append(re_id)
-                else:
-                    if recommender_id not in UNAVAILABLE_RECOMMENDER_IDS:
-                        recommender_ids = [recommender_id]
-                    else:
-                        continue
+            category, name, recommender_id, short_description, etc = "", "", "", "", ""
+            for row in rows:
+                cols = row.find_all("td")
+                cols = [ele.text.strip() for ele in cols]
+                if not cols:
+                    continue
                 
-            name = name.partition("\n")[0].strip()
-            short_description = short_description.partition("\n")[0].strip()
+                # 열 개수에 따라 데이터 파싱
+                if len(cols) == 5:
+                    category, name, recommender_id, short_description, _ = cols
+                elif len(cols) == 4:
+                    name, recommender_id, short_description, _ = cols
+                elif len(cols) == 3:
+                    recommender_id, short_description, _ = cols
+                    name = short_description
+                else:
+                    _LOGGER.warning(f"Unexpected number of columns: {len(cols)}")
+                    continue
+                
+                recommender_ids = []
+                if "Cloud SQL performance recommender" in name:
+                    name = "Cloud SQL performance recommender"
+                    short_description = "Improve Cloud SQL instance performance"
+                    recommender_ids = [
+                        "google.cloudsql.instance.PerformanceRecommender"
+                    ]
+                else:
+                    if recommender_id.count("google.") > 1:
+                        re_ids = recommender_id.split("google.")[1:]
+                        for re_id in re_ids:
+                            re_id = "google." + re_id
+                            if re_id not in UNAVAILABLE_RECOMMENDER_IDS:
+                                recommender_ids.append(re_id)
+                    else:
+                        if recommender_id not in UNAVAILABLE_RECOMMENDER_IDS:
+                            recommender_ids = [recommender_id]
+                        else:
+                            continue
+                    
+                name = name.partition("\n")[0].strip()
+                short_description = short_description.partition("\n")[0].strip()
 
-            for recommender_id in recommender_ids:
-                _LOGGER.debug(f"category: {category}, recommender_id: {recommender_id}, name: {name}, short_description: {short_description}")
-                self.recommender_map[recommender_id] = {
-                    "category": category,
-                    "name": name,
-                    "shortDescription": short_description,
-                }
+                for recommender_id in recommender_ids:
+                    _LOGGER.debug(f"category: {category}, recommender_id: {recommender_id}, name: {name}, short_description: {short_description}")
+                    self.recommender_map[recommender_id] = {
+                        "category": category,
+                        "name": name,
+                        "shortDescription": short_description,
+                    }
+        except Exception as e:
+            _LOGGER.error(f"Error occurred while crawling recommendation type docs: {e}")
+            self.recommender_map = RECOMMENDATION_MAP
 
     def _parse_recommendation(self, rec: dict) -> dict:
         

@@ -33,8 +33,6 @@ def collector_collect(params: dict) -> dict:
     secret_data = params["secret_data"]
     schema = params.get("schema")
     
-    print(f"##### secret_data:{secret_data}")
-
     resource_mgrs = ResourceManager.list_managers()
     for manager in resource_mgrs:
         start_time = time.time()
